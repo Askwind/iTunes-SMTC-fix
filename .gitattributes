@@ -61,3 +61,11 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+# ----------------------------------------------------------------------
+# Windows batch files MUST keep CRLF. cmd.exe's parser breaks on LF-only
+# scripts: '^' continuations stop working and the remaining arguments get
+# executed as separate commands. Force CRLF on checkout for every client,
+# regardless of core.autocrlf.
+*.bat    text eol=crlf
+*.cmd    text eol=crlf
