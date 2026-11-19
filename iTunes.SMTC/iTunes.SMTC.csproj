@@ -27,6 +27,13 @@
 	  </EmbeddedResource>
 	</ItemGroup>
 
+	<!-- 发布目录不再输出 iTunes.SMTC.dll.config，分发物只有一个 exe。
+	     程序首次启动时 Program.EnsureAppConfig() 会用上面内嵌的模板重建它。 -->
+	<Target Name="RemoveAppConfigFromPublish" AfterTargets="Publish">
+	  <Delete Files="$(PublishDir)$(AssemblyName).dll.config" Condition="Exists('$(PublishDir)$(AssemblyName).dll.config')" />
+	  <Delete Files="$(PublishDir)$(AssemblyName).exe.config" Condition="Exists('$(PublishDir)$(AssemblyName).exe.config')" />
+	</Target>
+
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
