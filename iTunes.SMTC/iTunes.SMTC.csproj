@@ -1,0 +1,103 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
+		<Platforms>x86;x64</Platforms>
+		<RuntimeIdentifiers>win-x86;win-x64</RuntimeIdentifiers>
+		<Nullable>disable</Nullable>
+		<UseWindowsForms>true</UseWindowsForms>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<ApplicationIcon>Resources\app.ico</ApplicationIcon>
+		<Configurations>Debug;Release;UnpackagedDebug;UnpackagedRelease</Configurations>
+		<AssemblyVersion></AssemblyVersion>
+		<Version>1.3.3.0</Version>
+		<Company>Dave Antoine</Company>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <Content Include="Resources\app.ico" />
+	</ItemGroup>
+
+	<!-- 打包一份默认配置进程序：单文件分发时即使 iTunes.SMTC.dll.config 丢失，
+	     Program.EnsureAppConfig() 也能在启动时自动重建，保证 Settings.Save() 可用。 -->
+	<ItemGroup>
+	  <EmbeddedResource Include="App.config">
+	    <LogicalName>iTunes.SMTC.default.config</LogicalName>
+	  </EmbeddedResource>
+	</ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="FlaUI.UIA3" Version="5.0.0" />
+		<PackageReference Include="Makaretu.Dns.Multicast" Version="0.27.0" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Sentry" Version="5.10.0" />
+		<PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.5" />
+		<PackageReference Include="Microsoft.Toolkit.Uwp.Notifications" Version="7.1.3" />
+		<PackageReference Include="NAudio" Version="2.2.1" />
+		<PackageReference Include="NPSMLib" Version="0.9.14" />
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.4" />
+		<PackageReference Include="TaskScheduler" Version="2.12.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="Interop.iTunesLib">
+			<HintPath>Reference\Interop.iTunesLib.dll</HintPath>
+		</Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<Compile Update="Properties\Resources.Designer.cs">
+		  <DesignTime>True</DesignTime>
+		  <AutoGen>True</AutoGen>
+		  <DependentUpon>Resources.resx</DependentUpon>
+		</Compile>
+		<Compile Update="Properties\Settings.Designer.cs">
+			<DesignTimeSharedInput>True</DesignTimeSharedInput>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Settings.settings</DependentUpon>
+		</Compile>
+		<Compile Update="SettingsUi.MediaController.cs">
+			<DependentUpon>SettingsUi.cs</DependentUpon>
+		</Compile>
+		<Compile Update="SettingsUi.Settings.cs">
+			<DependentUpon>SettingsUi.cs</DependentUpon>
+		</Compile>
+		<Compile Update="SettingsUi.TaskbarIcon.cs">
+			<DependentUpon>SettingsUi.cs</DependentUpon>
+		</Compile>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <EmbeddedResource Update="Properties\Resources.resx">
+	    <Generator>ResXFileCodeGenerator</Generator>
+	    <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+	  </EmbeddedResource>
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Update="Properties\Settings.settings">
+			<Generator>SettingsSingleFileGenerator</Generator>
+			<LastGenOutput>Settings.Designer.cs</LastGenOutput>
+		</None>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="iTunes\Model\" />
+	</ItemGroup>
+
+  <!-- Sentry Start -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <UseSentryCLI>true</UseSentryCLI>
+    <!-- Sends symbols to Sentry, enabling symbolication of stack traces. -->
+    <SentryUploadSymbols>true</SentryUploadSymbols>
+    <!-- Sends sources to Sentry, enabling display of source context. -->
+    <SentryUploadSources>true</SentryUploadSources>
+  </PropertyGroup>
+  <!-- Sentry End -->
+
+</Project>
