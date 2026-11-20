@@ -68,54 +68,121 @@ namespace iTunes.SMTC
         }
 
         private const string DefaultConfigResourceName = "iTunes.SMTC.default.config";
+        private const string ConfigFileName = "iTunes.SMTC.dll.config";
 
         /// <summary>
-        /// 上游把 5 个用户设置的默认值放在 App.config（发布后叫 iTunes.SMTC.dll.config）。
-        /// 单文件分发时这个文件很容易漏拷：读的时候有编译期默认值兜底不会出错，
-        /// 但 Settings.Default.Save() 在缺少 section 声明时可能抛异常。
-        /// 因此启动时检测一次，缺失就用内嵌的模板重建，做到"只拷 exe 也能用"。
+        ///  上游把 5 个用户设置的默认值放在 App.config（发布后叫 iTunes.SMTC.dll.config）。
+        ///  这个文件不能省：Settings.Save() 要靠它里面的 configSections 声明，
+        ///  缺了会抛 ConfigurationErrorsException（每次切开关都会保存）。
+        ///
+        ///  但它不必待在 exe 旁边。这里把它放到 %LOCALAPPDATA%\iTunes.SMTC\，
+        ///  程序目录就只剩一个 exe，而且 Program Files 这类不可写目录也能正常工作，
+        ///  exe 挪位置后设置也不会丢。
+        ///
+        ///  路径切换靠 AppDomain 的 APP_CONFIG_FILE，必须在任何 Settings /
+        ///  ConfigurationManager 访问之前完成；设完之后再回问一次
+        ///  ConfigurationManager 实际用的是哪个文件，不认就退回 exe 旁边，
+        ///  保证任何情况下 Save() 都有 section 声明可用。
         /// </summary>
         private static void EnsureAppConfig()
         {
             try
             {
-                // 这是运行时真正会读取的配置文件路径，比自己拼路径可靠
-                var configPath = AppContext.GetData("APP_CONFIG_FILE") as string;
+                var legacyPath = Path.Combine(AppContext.BaseDirectory, ConfigFileName);
 
-                if (string.IsNullOrEmpty(configPath))
+                var configPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "iTunes.SMTC",
+                    ConfigFileName);
+
+                // 旧版本写在 exe 旁边：内容可能被用户改过默认值，所以是搬过去而不是重建
+                if (!File.Exists(configPath) && File.Exists(legacyPath))
                 {
-                    configPath = Path.Combine(AppContext.BaseDirectory, "iTunes.SMTC.dll.config");
+                    Directory.CreateDirectory(Path.GetDirectoryName(configPath));
+                    File.Copy(legacyPath, configPath);
                 }
 
-                if (File.Exists(configPath))
+                WriteDefaultConfigIfMissing(configPath);
+
+                AppDomain.CurrentDomain.SetData("APP_CONFIG_FILE", configPath);
+
+                if (!IsAppConfigPath(configPath))
+                {
+                    // 系统没接受重定向：保持旧行为，确保 exe 旁边有一份可用的
+                    WriteDefaultConfigIfMissing(legacyPath);
+                    return;
+                }
+
+                // 只在这时才清掉旧文件，避免两头都没有
+                TryDelete(legacyPath);
+            }
+            catch
+            {
+                // 自愈失败不能影响启动：读设置仍有编译期默认值兜底
+            }
+        }
+
+        /// <summary>
+        ///  ConfigurationManager 实际会读取的文件是不是 <paramref name="expected"/>。
+        ///  这一步也会把配置系统初始化在当前路径上，所以必须先 SetData 再问。
+        /// </summary>
+        private static bool IsAppConfigPath(string expected)
+        {
+            try
+            {
+                var actual = global::System.Configuration.ConfigurationManager
+                    .OpenExeConfiguration(global::System.Configuration.ConfigurationUserLevel.None)
+                    .FilePath;
+
+                return string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static void WriteDefaultConfigIfMissing(string path)
+        {
+            if (File.Exists(path))
+            {
+                return;
+            }
+
+            using (var stream = typeof(Program).Assembly.GetManifestResourceStream(DefaultConfigResourceName))
+            {
+                if (stream == null)
                 {
                     return;
                 }
 
-                using (var stream = typeof(Program).Assembly.GetManifestResourceStream(DefaultConfigResourceName))
+                using (var reader = new StreamReader(stream, Encoding.UTF8))
                 {
-                    if (stream == null)
+                    var xml = reader.ReadToEnd();
+                    var directory = Path.GetDirectoryName(path);
+
+                    if (!string.IsNullOrEmpty(directory))
                     {
-                        return;
+                        Directory.CreateDirectory(directory);
                     }
 
-                    using (var reader = new StreamReader(stream, Encoding.UTF8))
-                    {
-                        var xml = reader.ReadToEnd();
-                        var directory = Path.GetDirectoryName(configPath);
+                    File.WriteAllText(path, xml, new UTF8Encoding(false));
+                }
+            }
+        }
 
-                        if (!string.IsNullOrEmpty(directory))
-                        {
-                            Directory.CreateDirectory(directory);
-                        }
-
-                        File.WriteAllText(configPath, xml, new UTF8Encoding(false));
-                    }
+        private static void TryDelete(string path)
+        {
+            try
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
                 }
             }
             catch
             {
-                // 自愈失败不能影响启动：缺文件时读取仍会走编译期默认值
+                // 删不掉就留着，不影响功能
             }
         }
 
